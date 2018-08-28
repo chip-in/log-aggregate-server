@@ -24,7 +24,7 @@
     "del-cli": "^1.1.0"
   },
   "dependencies": {
-    "@chip-in/logger": "0.0.2",
+    "@chip-in/logger": "0.0.4",
     "async": "^2.6.0",
     "csv": "^3.0.2",
     "express": "^4.16.3",

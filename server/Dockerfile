@@ -1,9 +1,15 @@
-FROM node:8.9.4
-ENV APP_ROOT /var/cilogger/server/
+FROM node:8-alpine
 
-COPY package.json $APP_ROOT
-COPY package-lock.json $APP_ROOT
-COPY .babelrc $APP_ROOT
-COPY src/*.js $APP_ROOT/src/
-WORKDIR $APP_ROOT
-RUN npm install && npm run cleanbuild
+ENV CI_HOME=/usr/local/chip-in
+
+RUN apk --update add pcre-dev openssl-dev curl git
+RUN mkdir -p ${CI_HOME}/ \
+  && cd ${CI_HOME} \
+  && git clone https://github.com/chip-in/log-aggregate-server.git log-aggregate-server \
+  && cd ${CI_HOME}/log-aggregate-server/server/ \
+  && npm i \
+  && npm run cleanbuild
+
+WORKDIR ${CI_HOME}/log-aggregate-server
+
+ENTRYPOINT ["npm", "start", "--"]

@@ -22,9 +22,8 @@ services:
       - "5432:5432"
   log-aggregate-webserver:
     container_name: log-aggregate-webserver
-    build: ./server/
-    image: chipin/logger-webserver:latest
-    working_dir: /var/cilogger/server/
+    image: chipin/log-aggregate-server:latest
+    working_dir: /usr/local/chip-in/log-aggregate-server/server/
     tty: true
     ports:
       - "3001:3001"
