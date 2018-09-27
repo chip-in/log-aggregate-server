@@ -1,6 +1,6 @@
 {
   "name": "@chip-in/LogAggregateServer",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "chip-in LogAggregateServer",
   "keywords": [
     "chip-in"
