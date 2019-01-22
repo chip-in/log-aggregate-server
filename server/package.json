@@ -1,6 +1,6 @@
 {
   "name": "@chip-in/LogAggregateServer",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "chip-in LogAggregateServer",
   "keywords": [
     "chip-in"
@@ -24,7 +24,7 @@
     "del-cli": "^1.1.0"
   },
   "dependencies": {
-    "@chip-in/logger": "0.0.4",
+    "@chip-in/logger": "0.0.6",
     "async": "^2.6.0",
     "csv": "^3.0.2",
     "express": "^4.16.3",
