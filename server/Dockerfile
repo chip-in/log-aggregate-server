@@ -1,7 +1,7 @@
 FROM node:8-alpine
 
 ENV CI_HOME=/usr/local/chip-in
-ENV SERVER_VERSION=0.0.4
+ENV SERVER_VERSION=0.0.5
 
 RUN apk --update add pcre-dev openssl-dev curl git
 RUN mkdir -p ${CI_HOME}/ \
