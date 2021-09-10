@@ -59,6 +59,7 @@ CREATE TABLE logs (
   integer1        integer,
   integer2        integer,
   integer3        integer,
-  integer4        integer
+  integer4        integer,
+  message         text
 );
 ALTER TABLE logs OWNER TO chipinadmin;

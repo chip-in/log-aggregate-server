@@ -33,8 +33,14 @@ const clientConfig = {
   port: process.env.DB_PORT
 }
 
+// Message Configuration
+const languagePriority = process.env.LOG_LANGUAGE && process.env.LOG_LANGUAGE.split(',') || ['en-US', 'ja-JP'];
+let messagesMaster = {};
+getMessagesMaster();
+
 app.listen(port, () => {
   logger.trace(MESSAGES.START_LISTEN.code, MESSAGES.START_LISTEN.msg, [port.toString()]);
+  logger.info(MESSAGES.PASS_FUNCTION.code, MESSAGES.PASS_FUNCTION.msg, ['app.listen', `languagePriority=${JSON.stringify(languagePriority)}`]);
 });
 
 // Allows CORS
@@ -58,6 +64,7 @@ app.post('/l/messages', (req, res) => {
   const bodyObject = JSON.parse(bodyJson);
   const sql = "INSERT INTO messages VALUES ($1, $2, $3, $4) ON CONFLICT ON CONSTRAINT messages_pkey DO UPDATE SET message = $4";
   const values = [bodyObject['FQDN'], bodyObject['code'], bodyObject['language'], bodyObject['message']];
+  setMessageMaster(bodyObject['FQDN'], bodyObject['code'], bodyObject['language'], bodyObject['message']);
   
   const client = new pg.Client(clientConfig)
   client.connect()
@@ -69,7 +76,7 @@ app.post('/l/messages', (req, res) => {
       return res.json({retCode: 0, detail: "Success"});
     })
     .catch(e => {
-      logger.debug(MESSAGES.FAILURE_REGISTER.code, MESSAGES.FAILURE_REGISTER.msg, ['messages', e.toString()]);
+      logger.warn(MESSAGES.FAILURE_REGISTER.code, MESSAGES.FAILURE_REGISTER.msg, ['messages', e.toString()]);
       return res.json({retCode: e.code || 9, detail: e});
     })
     client.on('drain', function() {
@@ -118,7 +125,7 @@ app.post('/l/sessions', (req, res, next) => {
       return res.json({retCode: 0, detail: "Success"});
     })
     .catch(e => {
-      logger.debug(MESSAGES.FAILURE_REGISTER.code, MESSAGES.FAILURE_REGISTER.msg, ['sessions', e.toString()]);
+      logger.warn(MESSAGES.FAILURE_REGISTER.code, MESSAGES.FAILURE_REGISTER.msg, ['sessions', e.toString()]);
       return res.json({retCode: e.code || 9, detail: e});
     })
     client.on('drain', function() {
@@ -147,7 +154,7 @@ app.post('/l/logs', (req, res) => {
     client.connect()
     .then(() => {
       logger.trace(MESSAGES.CONNECTED.code, MESSAGES.CONNECTED.msg, ['logs']);
-      const sql = "INSERT INTO logs VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)";
+      const sql = "INSERT INTO logs VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)";
       async.eachSeries(logObject, function(log, next) {
         const values = [bodyObject['sessionId']].concat(setLogParam(log));
         client.query(sql, values)
@@ -155,7 +162,7 @@ app.post('/l/logs', (req, res) => {
           logger.trace(MESSAGES.SUCCESS_REGISTER.code, MESSAGES.SUCCESS_REGISTER.msg, ['logs'], [result.rowCount]);
         })
         .catch(e => {
-          logger.debug(MESSAGES.FAILURE_REGISTER.code, MESSAGES.FAILURE_REGISTER.msg, ['logs', e.stack.toString()]);
+          logger.warn(MESSAGES.FAILURE_REGISTER.code, MESSAGES.FAILURE_REGISTER.msg, ['logs', e.stack.toString()]);
           throw e.code;
         });
       
@@ -297,5 +304,192 @@ function setLogParam(logObject) {
     }
     ret.push(data);
   });
+
+  const params = {
+    'fqdn': logObject.FQDN,
+    'code': logObject.code,
+    'inserts': [logObject.string1, logObject.string2, logObject.string3, logObject.string4],
+    'timeInserts': [logObject.timestamp1, logObject.timestamp2, logObject.timestamp3, logObject.timestamp4],
+    'numInserts': [logObject.integer1, logObject.integer2, logObject.integer3, logObject.integer4]
+  }
+  ret.push(generateEmbeddedMessage(params));
   return ret;
 }  
+
+/*
+ * @desc Generate an argument embedded message.
+ * @param {Object}  params - log data
+ * @return {String}
+ */
+function generateEmbeddedMessage({fqdn, code, inserts, timeInserts, numInserts}) {
+  let embeddedMessage = "";
+  const msgId = fqdn && code? (`${fqdn}:${code}`) : null;
+  const getMessage = (msgId) => {
+    if (!msgId || !messagesMaster || !messagesMaster[msgId]) return null;
+
+    let ret = null;
+    const target = messagesMaster[msgId];
+    const targetLang = Object.keys(target);
+
+    if (targetLang.length === 1) {
+      ret = target[targetLang[0]];
+    } else if (targetLang.length < 1) {
+      return null;
+    } else {
+      let idx = -1;
+      for (var i = 0; i < languagePriority.length; i++) {
+        if ((idx = targetLang.indexOf(languagePriority[i])) !== -1) {
+          break;
+        }
+      }
+      if (idx === -1) idx = 0;
+      ret = target[targetLang[idx]];
+    }
+
+    if (typeof ret !== 'string') {
+      return null;
+    }
+    return ret;
+  }
+
+  const targetMessage = getMessage(msgId);
+  if (targetMessage) {
+    const params = {
+      msg: targetMessage,
+      inserts,
+      timeInserts,
+      numInserts,
+    }
+    embeddedMessage = logMessageFormat(params);
+  } else {
+    embeddedMessage = "<<message is not registered>>";
+  }
+  return embeddedMessage;
+}
+
+/**
+ * @desc This function sets pad characters in a message.
+ * 
+ * @param {String} msg - Target message
+ * @param {Array}  inserts - Array of embedded parameters for String. Maximum length is 4.
+ * @param {Array}  numInserts - Array of embedded parameters for Number. Maximum length is 4.
+ * @param {Array}  timeInserts - Array of embedded parameters for DateTime. Maximum length is 4.
+ * @return {String}
+ */
+const formatRegExp = /%([1234%]|[dt][1234])/g;
+function logMessageFormat({msg, inserts, numInserts, timeInserts}) {
+  const str = String(msg).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    const type = x.substr(1,1);
+    let index;
+    switch (type) {
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+        index = x.substr(1,1) - 1;
+        if (inserts && Array.isArray(inserts) && index < inserts.length) {
+          return String(inserts[index]);
+        } else {
+          return x;   
+        }
+      case 'd':
+        index = x.substr(2,1) - 1;
+        return (numInserts && Array.isArray(numInserts)  && index < numInserts.length) ? (numInserts[index] != null &&  numInserts[index] != ''? Number(numInserts[index]) : null) : x;
+      case 't':
+        index = x.substr(2,1) - 1;
+        let ret = x;
+        if (timeInserts && Array.isArray(timeInserts)  && index < timeInserts.length) {
+          const time = new Date(timeInserts[index]);
+          if (timeInserts[index] == null || timeInserts[index] == "Invalid Date") {
+            ret = timeInserts[index];
+          } else if (timeInserts[index] == '') {
+            ret = null;
+          } else if (isNaN(time)) {
+            ret = "";
+          } else {
+            ret = toLocaleString(time);
+          }
+        }
+        return ret;
+      default:
+        return x;
+    }
+  });
+  return str;
+};
+
+/**
+ * @desc This function returns formatted datetime.  [format]: YYYY-MM-DD hh:mm:ss.SSS 
+ * @param {Date} date - Target date 
+ * @return {String} a string in the local time of this Date object.
+ */
+ function toLocaleString(date) {
+  const pad = (number) => {
+    if (number < 10) {
+      return '0' + number;
+    }
+    return number;
+  };
+  return date.getFullYear()
+    + "-" + pad(date.getMonth() + 1)
+    + "-" + pad(date.getDate())
+    + " " + pad(date.getHours())
+    + ":" + pad(date.getMinutes())
+    + ":" + pad(date.getSeconds())
+    + '.' + (date.getMilliseconds() / 1000).toFixed(3).slice(2, 5);
+}
+
+/**
+ * @desc Set on the message map from DB.
+ */
+function getMessagesMaster() {
+  logger.trace(MESSAGES.START_FUNCTION.code, MESSAGES.START_FUNCTION.msg, ['getMessagesMaster']);
+  const sql = "SELECT * FROM messages ORDER BY fqdn, code, language";
+  const client = new pg.Client(clientConfig)
+  client.connect()
+  .then(() => {
+    logger.trace(MESSAGES.CONNECTED.code, MESSAGES.CONNECTED.msg, ['messages']);
+    client.query(sql)
+    .then((result) => {
+      logger.trace(MESSAGES.SUCCESS_FETCH.code, MESSAGES.SUCCESS_FETCH.msg, ['messages'], [result.rowCount]);
+      messagesMaster = {};
+      result.rows && result.rows.map((row) => {
+        setMessageMaster(row.fqdn, row.code, row.language, row.message);
+      })
+      return;
+    })
+    .catch(e => {
+      logger.warn(MESSAGES.FAILURE_FETCH.code, MESSAGES.FAILURE_FETCH.msg, ['messages', e.toString()]);
+      return;
+    })
+    client.on('drain', function() {
+      client.end(function() {
+        logger.trace(MESSAGES.END_PGCLIENT.code, MESSAGES.END_PGCLIENT.msg, ['messages']);
+      });
+    });    
+  })
+  .catch(e => {
+      logger.debug(MESSAGES.FAILURE_CONNECT.code, MESSAGES.FAILURE_CONNECT.msg, ['messages', e.stack.toString()]);
+      return;
+  })
+}
+
+/**
+ * @desc Set on the message map.
+ */
+function setMessageMaster(fqdn, code, language, message) {
+  if (!fqdn || !code || !language || !message) {
+    return;
+  }
+  if (messagesMaster == null) {
+    logger.info(MESSAGES.PASS_FUNCTION.code, MESSAGES.PASS_FUNCTION.msg, ['setMessageMaster', 'messagesMaster is null.']);
+    messagesMaster = {};
+  }
+  const msgTblKey = `${fqdn}:${code}`;
+  if (messagesMaster[msgTblKey]) {
+    messagesMaster[msgTblKey][language] = message;
+  } else {
+    messagesMaster[msgTblKey] = {[language]: message};
+  }
+}

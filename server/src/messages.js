@@ -14,6 +14,10 @@ const MESSAGES = {
   REGISTERED_NULL_STRING:   {code: 10, msg: '"null" was registered because an embedded element isn\'t a character string.'},
   REGISTERED_NULL_DATE:     {code: 11, msg: '"null" was registered because an embedded element isn\'t a date form character string.'},
   REGISTERED_NULL_INTEGER:  {code: 12, msg: '"null" was registered because an embedded element isn\'t an integer.'},
+  START_FUNCTION:           {code: 13, msg: 'START %1.'}, // %1: functionName
+  PASS_FUNCTION:            {code: 14, msg: 'PASS %1. info=%2'}, // %1: functionName, %2: info
+  SUCCESS_FETCH:            {code: 15, msg: 'Succeeded to fetch the %1. rowCount=%d1'}, //  %1: tableName, %d1: rowCount
+  FAILURE_FETCH:            {code: 16, msg: 'Failed to fetch the %1. detail=%2'}, //  %1: tableName, %2: catch error
 
   EOD: {code: -1, msg: 'End of data'}
 }

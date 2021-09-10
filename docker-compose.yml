@@ -32,6 +32,7 @@ services:
       APP_PORT: 3001
 #     LOGGER_LOGLEVEL: warn
 #     LOGGER_MAX_STRING_LENGTH: 1024
+#     LOG_LANGUAGE: "ja-JP,en-US"
       DB_USER: chipinadmin
       DB_HOST: postgresql
       DB_DATABASE: logdb
