@@ -1,6 +1,6 @@
 {
   "name": "@chip-in/LogAggregateServer",
-  "version": "0.1.1",
+  "version": "0.2.0-rc.0",
   "description": "chip-in LogAggregateServer",
   "keywords": [
     "chip-in"
@@ -14,20 +14,21 @@
     "start": "node lib/LogAggregateServer.js",
     "cleanbuild": "npm run clean && npm run build",
     "build": "babel src -s inline -d lib/",
-    "clean": "del-cli lib",
+    "clean": "rimraf lib",
     "watch": "npm run clean && babel src -s inline -d lib/ -w",
     "prepare": "npm run cleanbuild"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-preset-es2015": "^6.24.1",
-    "del-cli": "^1.1.0"
+    "@babel/cli": "^7.17.3",
+    "@babel/core": "^7.17.4",
+    "@babel/preset-env": "^7.16.11",
+    "rimraf": "^3.0.2"
   },
   "dependencies": {
-    "@chip-in/logger": "0.0.8",
-    "async": "^2.6.0",
-    "csv": "^3.0.2",
-    "express": "^4.16.3",
-    "pg": "^7.4.1"
+    "@chip-in/logger": "0.1.0-rc.0",
+    "async": "^3.2.3",
+    "csv": "^6.0.5",
+    "express": "^4.17.3",
+    "pg": "^8.7.3"
   }
 }
