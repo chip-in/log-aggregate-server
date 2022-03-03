@@ -2,7 +2,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import zlib from 'zlib';
-import csv from 'csv';
+import * as csv from "csv";
 import pg from 'pg';
 import async from 'async';
 import { Logger } from '@chip-in/logger';
