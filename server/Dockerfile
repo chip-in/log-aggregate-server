@@ -1,13 +1,13 @@
-FROM node:8-alpine
+FROM node:16-alpine
 
 ENV CI_HOME=/usr/local/chip-in
-ENV SERVER_VERSION=0.2.0
 
-RUN apk --update add pcre-dev openssl-dev curl git
-RUN mkdir -p ${CI_HOME}/ \
-  && cd ${CI_HOME} \
-  && git clone -b ${SERVER_VERSION} https://github.com/chip-in/log-aggregate-server.git log-aggregate-server \
-  && cd ${CI_HOME}/log-aggregate-server/server/ \
+RUN apk --update add pcre-dev openssl-dev curl \
+  && mkdir -p ${CI_HOME}/
+
+COPY . ${CI_HOME}/log-aggregate-server/
+
+RUN cd ${CI_HOME}/log-aggregate-server/server/ \
   && npm i \
   && npm run cleanbuild
 

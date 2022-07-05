@@ -1,6 +1,6 @@
 {
   "name": "@chip-in/LogAggregateServer",
-  "version": "0.2.0",
+  "version": "0.2.1-rc6a21f353.1",
   "description": "chip-in LogAggregateServer",
   "keywords": [
     "chip-in"
@@ -25,7 +25,7 @@
     "rimraf": "^3.0.2"
   },
   "dependencies": {
-    "@chip-in/logger": "0.1.0-rc.0",
+    "@chip-in/logger": "^0.1.2",
     "async": "^3.2.3",
     "csv": "^6.0.5",
     "express": "^4.17.3",
